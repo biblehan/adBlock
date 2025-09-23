@@ -1,23 +1,8 @@
-/* 소셜미디어 광고 차단 */
-            [data-testid*="ad"], [aria-label*="광고"], [aria-label*="Sponsored"] {
-                display: none !important;
-            }    // YouTube 광고 특별 처리
-    function handleYouTubeAds() {
-        if (window.location.hostname.includes('youtube.com')) {
-            // YouTube 광고 스킵 버튼 자동 클릭
-            setInterval(() => {
-                const skipButton = document.querySelector('.ytp-ad-skip-button, .ytp-skip-ad-button');
-                if (skipButton) {
-                    skipButton.click();
-                    console.log('🚫 YouTube 광고 스킵');
-                }
-            }, 1000);
-        }
-    }// ==UserScript==
-// @name         강력한 광고차단기
+// ==UserScript==
+// @name         나무위키 전용 강력한 광고차단기
 // @namespace    https://unicornpro.extension/
-// @version      2.0
-// @description  웹페이지 광고 강력 차단
+// @version      3.0
+// @description  나무위키 파워링크 포함 모든 광고 차단
 // @author       User
 // @match        https://*/*
 // @match        http://*/*
@@ -28,7 +13,7 @@
 (function() {
     'use strict';
 
-    // 더 포괄적인 광고 선택자들 (나무위키 전용 추가)
+    // 나무위키 파워링크 포함 광고 선택자들
     const adSelectors = [
         // 기본 광고 클래스들
         '.ad', '.ads', '.advertisement', '.banner', '.popup', '.modal',
@@ -39,13 +24,10 @@
         '.google-ads', '.adsense', '.adsbygoogle', 
         'ins[class*="adsbygoogle"]', '.google-ad-unit',
         
-        // 나무위키 파워링크 광고 (특별 패턴)
+        // 나무위키 파워링크 광고 패턴들
         'div[class=""] > div > div[class]:nth-last-child(1)',
-        'div:has(a[href*="/w/분류:"]) ~ div:has(div.wiki-paragraph) ~ div:has(img[src*="w.namu.la"])',
-        'div > div > div > div > div > div > div:nth-child(4) > div > div > div > div > div > div > div:last-child > div > div > div > div > div > div > div > div._8o4IFT5P',
         '[class*="powerlink"]', '[data-powerlink]',
-        'div:has(img[src*="w.namu.la"])',
-        'div:has(a[href*="search.naver.com"])',
+        '._8o4IFT5P',
         
         // 한국 광고 플랫폼들
         '.dable_widget', '.dable-widget', '.taboola', '.outbrain', 
@@ -84,29 +66,12 @@
         '[data-ad]', '[data-ads]', '[data-advertisement]'
     ];
 
-    // 광고 관련 도메인들
-    const adDomains = [
-        'googleads.g.doubleclick.net',
-        'googlesyndication.com',
-        'googletagservices.com',
-        'google-analytics.com',
-        'googletagmanager.com',
-        'amazon-adsystem.com',
-        'facebook.com/tr',
-        'connect.facebook.net',
-        'doubleclick.net',
-        'adsystem.com',
-        'outbrain.com',
-        'taboola.com',
-        'criteo.com'
-    ];
-
     // 강력한 CSS 스타일 주입
     function injectStrongCSS() {
         const style = document.createElement('style');
-        style.id = 'unicorn-ad-blocker';
+        style.id = 'unicorn-ad-blocker-enhanced';
         style.textContent = `
-            /* 광고 요소 완전 제거 */
+            /* 기본 광고 요소 완전 제거 */
             .ad, .ads, .advertisement, .banner, .popup,
             .ad-container, .ad-wrapper, .ad-banner, .ad-block, .ad-content,
             .ad-space, .ad-unit, .ad-slot, .ad-frame, .ad-box,
@@ -133,6 +98,17 @@
                 z-index: -9999 !important;
             }
             
+            /* 나무위키 파워링크 특별 차단 */
+            div[class=""] > div > div[class]:nth-last-child(1),
+            [class*="powerlink"], [data-powerlink],
+            ._8o4IFT5P {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0px !important;
+                width: 0px !important;
+            }
+            
             /* iframe 광고 차단 */
             iframe[src*="googleads"],
             iframe[src*="doubleclick"],
@@ -148,19 +124,17 @@
                 display: none !important;
             }
             
-            /* 나무위키 파워링크 특별 차단 */
-            div[class=""] > div > div[class]:nth-last-child(1),
-            div:has(a[href*="/w/분류:"]) ~ div:has(div.wiki-paragraph) ~ div:has(img[src*="w.namu.la"]),
-            div:has(img[src*="w.namu.la"]),
-            div:has(a[href*="search.naver.com"]),
-            [class*="powerlink"], [data-powerlink],
-            ._8o4IFT5P,
+            /* 소셜미디어 광고 차단 */
+            [data-testid*="ad"], [aria-label*="광고"], [aria-label*="Sponsored"] {
+                display: none !important;
+            }
             
             /* 애드쉴드 무력화 */
-            [class*="adshield"], [id*="adshield"],
+            [class*="adshield"], [id*="adshield"] {
+                display: none !important;
+            }
         `;
         
-        // head가 없으면 생성
         if (!document.head) {
             document.head = document.createElement('head');
             document.documentElement.appendChild(document.head);
@@ -169,7 +143,70 @@
         document.head.appendChild(style);
     }
 
-    // 광고 요소 강력 제거
+    // 나무위키 전용 파워링크 차단
+    function blockNamuwikiAds() {
+        if (!window.location.hostname.includes('namu.wiki')) return;
+        
+        try {
+            let removedCount = 0;
+            
+            // 패턴 1: w.namu.la 이미지가 포함된 광고
+            const imgAds = document.querySelectorAll('img[src*="w.namu.la"]');
+            imgAds.forEach(img => {
+                let parent = img.parentNode;
+                while (parent && parent !== document.body) {
+                    if (parent.children.length <= 5 && parent.textContent.length < 500) {
+                        parent.remove();
+                        removedCount++;
+                        console.log('🚫 나무위키 파워링크 차단 (이미지)');
+                        break;
+                    }
+                    parent = parent.parentNode;
+                }
+            });
+            
+            // 패턴 2: 네이버 검색 링크가 포함된 광고
+            const naverAds = document.querySelectorAll('a[href*="search.naver.com"]');
+            naverAds.forEach(link => {
+                let parent = link.parentNode;
+                while (parent && parent !== document.body) {
+                    if (parent.children.length <= 5) {
+                        parent.remove();
+                        removedCount++;
+                        console.log('🚫 나무위키 파워링크 차단 (네이버링크)');
+                        break;
+                    }
+                    parent = parent.parentNode;
+                }
+            });
+            
+            // 패턴 3: 특정 클래스 패턴
+            const specialAds = document.querySelectorAll('div[class=""] > div > div[class]:nth-last-child(1)');
+            specialAds.forEach(ad => {
+                if (ad.querySelector('img') || ad.textContent.includes('광고')) {
+                    ad.remove();
+                    removedCount++;
+                    console.log('🚫 나무위키 파워링크 차단 (패턴)');
+                }
+            });
+            
+            // 애드쉴드 제거
+            const adshields = document.querySelectorAll('[class*="adshield"], [id*="adshield"], script[src*="adshield"]');
+            adshields.forEach(el => {
+                el.remove();
+                console.log('🚫 애드쉴드 제거');
+            });
+            
+            if (removedCount > 0) {
+                console.log(`🚫 나무위키에서 ${removedCount}개 광고 차단`);
+            }
+            
+        } catch (error) {
+            console.log('나무위키 광고 차단 오류:', error);
+        }
+    }
+
+    // 일반 광고 제거
     function removeAdsAggressively() {
         let removedCount = 0;
         
@@ -178,86 +215,26 @@
                 const elements = document.querySelectorAll(selector);
                 elements.forEach(element => {
                     if (element && element.parentNode) {
-                        // 부모 요소도 광고인지 확인
-                        let parent = element.parentNode;
-                        while (parent && parent !== document.body) {
-                            if (isAdContainer(parent)) {
-                                parent.remove();
-                                removedCount++;
-                                return;
-                            }
-                            parent = parent.parentNode;
-                        }
-                        
-                        // 요소 자체 제거
                         element.remove();
                         removedCount++;
                     }
                 });
             } catch (e) {
-                console.log('선택자 오류:', selector, e);
+                // 선택자 오류 무시
             }
         });
         
         if (removedCount > 0) {
-            console.log(`🚫 ${removedCount}개 광고 요소 제거됨`);
+            console.log(`🚫 ${removedCount}개 일반 광고 차단`);
         }
     }
 
-    // 광고 컨테이너 판별
-    function isAdContainer(element) {
-        if (!element || !element.className) return false;
-        
-        const className = element.className.toLowerCase();
-        const id = (element.id || '').toLowerCase();
-        
-        const adKeywords = ['ad', 'ads', 'advertisement', 'banner', 'sponsored', 'promoted'];
-        
-        return adKeywords.some(keyword => 
-            className.includes(keyword) || id.includes(keyword)
-        );
-    }
-
-    // 광고 스크립트 차단
-    function blockAdScripts() {
-        // 기존 스크립트 제거
-        const scripts = document.querySelectorAll('script[src]');
-        scripts.forEach(script => {
-            const src = script.getAttribute('src');
-            if (src && adDomains.some(domain => src.includes(domain))) {
-                script.remove();
-                console.log('🚫 광고 스크립트 차단:', src);
-            }
-        });
-
-        // 새 스크립트 로딩 차단
-        const originalCreateElement = document.createElement;
-        document.createElement = function(tagName) {
-            const element = originalCreateElement.call(document, tagName);
-            
-            if (tagName.toLowerCase() === 'script') {
-                const originalSetAttribute = element.setAttribute;
-                element.setAttribute = function(name, value) {
-                    if (name === 'src' && adDomains.some(domain => value.includes(domain))) {
-                        console.log('🚫 광고 스크립트 로딩 차단:', value);
-                        return;
-                    }
-                    originalSetAttribute.call(element, name, value);
-                };
-            }
-            
-            return element;
-        };
-    }
-
-    // 팝업 및 알림 차단
-    function blockPopupsAndNotifications() {
-        // 팝업 차단
+    // 팝업 차단
+    function blockPopups() {
         window.alert = function() { return false; };
         window.confirm = function() { return false; };
         window.prompt = function() { return ''; };
         
-        // 새 창 열기 제한적 차단 (사용자 클릭이 아닌 경우만)
         let userInteracted = false;
         document.addEventListener('click', () => { userInteracted = true; });
         document.addEventListener('keydown', () => { userInteracted = true; });
@@ -273,7 +250,7 @@
         };
     }
 
-    // DOM 변화 감지 및 대응
+    // DOM 변화 감지
     function setupMutationObserver() {
         const observer = new MutationObserver(function(mutations) {
             let shouldCheck = false;
@@ -285,9 +262,11 @@
             });
             
             if (shouldCheck) {
-                // 디바운싱으로 성능 최적화
                 clearTimeout(window.adBlockTimeout);
-                window.adBlockTimeout = setTimeout(removeAdsAggressively, 100);
+                window.adBlockTimeout = setTimeout(() => {
+                    removeAdsAggressively();
+                    blockNamuwikiAds();
+                }, 100);
             }
         });
 
@@ -297,71 +276,39 @@
                 subtree: true
             });
         } else {
-            // body가 아직 없으면 나중에 다시 시도
             setTimeout(setupMutationObserver, 100);
         }
     }
 
-    // 나무위키 전용 차단 함수
-    function blockNamuwikiAds() {
-        if (!window.location.hostname.includes('namu.wiki')) return;
-        
-        try {
-            // 파워링크 패턴 1: 빈 클래스를 가진 div의 마지막 자식
-            const powerlinks1 = document.querySelectorAll('div[class=""] > div > div[class]:nth-last-child(1)');
-            powerlinks1.forEach(el => {
-                if (el.textContent.includes('광고') || el.querySelector('img[src*="w.namu.la"]')) {
-                    el.remove();
-                    console.log('🚫 나무위키 파워링크 차단 (패턴1)');
+    // YouTube 광고 스킵
+    function handleYouTubeAds() {
+        if (window.location.hostname.includes('youtube.com')) {
+            setInterval(() => {
+                const skipButton = document.querySelector('.ytp-ad-skip-button, .ytp-skip-ad-button');
+                if (skipButton) {
+                    skipButton.click();
+                    console.log('🚫 YouTube 광고 스킵');
                 }
-            });
-            
-            // 파워링크 패턴 2: w.namu.la 이미지가 포함된 div
-            const powerlinks2 = document.querySelectorAll('div');
-            powerlinks2.forEach(div => {
-                const img = div.querySelector('img[src*="w.namu.la"]');
-                const naverId = div.querySelector('a[href*="search.naver.com"]');
-                if (img || naverId) {
-                    // 부모 컨테이너까지 확인해서 제거
-                    let parent = div;
-                    while (parent && parent.parentNode && parent !== document.body) {
-                        if (parent.children.length <= 3 && parent.textContent.length < 1000) {
-                            parent.remove();
-                            console.log('🚫 나무위키 파워링크 차단 (패턴2)');
-                            break;
-                        }
-                        parent = parent.parentNode;
-                    }
-                }
-            });
-            
-            // 애드쉴드 무력화
-            const adshields = document.querySelectorAll('[class*="adshield"], [id*="adshield"], script[src*="adshield"]');
-            adshields.forEach(el => el.remove());
-            
-        } catch (error) {
-            console.log('나무위키 광고 차단 오류:', error);
+            }, 1000);
         }
     }
 
     // 초기화 함수
     function init() {
         try {
-            console.log('🚫 강력한 광고차단기 시작!');
+            console.log('🚫 나무위키 전용 강력한 광고차단기 시작!');
             
             // 즉시 CSS 주입
             injectStrongCSS();
             
             // 팝업 차단
-            blockPopupsAndNotifications();
-            
-            // 스크립트 차단
-            blockAdScripts();
+            blockPopups();
             
             // 즉시 한 번 실행
             removeAdsAggressively();
+            blockNamuwikiAds();
             
-            // DOM이 준비되면 실행
+            // DOM 준비 후 실행
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() {
                     removeAdsAggressively();
@@ -381,16 +328,19 @@
                 setInterval(() => {
                     removeAdsAggressively();
                     blockNamuwikiAds();
-                }, 1000);
+                }, 1000); // 1초마다
             } else {
-                setInterval(removeAdsAggressively, 2000);
+                setInterval(removeAdsAggressively, 3000); // 3초마다
             }
             
-            // 페이지 스크롤 시에도 검사
+            // 스크롤 시에도 검사
             let scrollTimeout;
             window.addEventListener('scroll', function() {
                 clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(removeAdsAggressively, 500);
+                scrollTimeout = setTimeout(() => {
+                    removeAdsAggressively();
+                    blockNamuwikiAds();
+                }, 500);
             });
             
         } catch (error) {
