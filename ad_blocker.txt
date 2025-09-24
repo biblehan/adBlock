@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         나무위키 전용 강력한 광고차단기
+// @name         유니콘 강력한 광고차단기
 // @namespace    https://unicornpro.extension/
-// @version      3.0
-// @description  나무위키 파워링크 포함 모든 광고 차단
+// @version      3.1
+// @description  모든 웹사이트 광고 차단 + YouTube 광고 완벽 차단
 // @author       User
 // @match        https://*/*
 // @match        http://*/*
@@ -13,7 +13,7 @@
 (function() {
     'use strict';
 
-    // 나무위키 파워링크 포함 광고 선택자들
+    // 일반 광고 선택자들
     const adSelectors = [
         // 기본 광고 클래스들
         '.ad', '.ads', '.advertisement', '.banner', '.popup', '.modal',
@@ -23,11 +23,6 @@
         // Google 광고들
         '.google-ads', '.adsense', '.adsbygoogle', 
         'ins[class*="adsbygoogle"]', '.google-ad-unit',
-        
-        // 나무위키 파워링크 광고 패턴들
-        'div[class=""] > div > div[class]:nth-last-child(1)',
-        '[class*="powerlink"]', '[data-powerlink]',
-        '._8o4IFT5P',
         
         // 한국 광고 플랫폼들
         '.dable_widget', '.dable-widget', '.taboola', '.outbrain', 
@@ -98,17 +93,6 @@
                 z-index: -9999 !important;
             }
             
-            /* 나무위키 파워링크 특별 차단 */
-            div[class=""] > div > div[class]:nth-last-child(1),
-            [class*="powerlink"], [data-powerlink],
-            ._8o4IFT5P {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                height: 0px !important;
-                width: 0px !important;
-            }
-            
             /* iframe 광고 차단 */
             iframe[src*="googleads"],
             iframe[src*="doubleclick"],
@@ -129,7 +113,34 @@
                 display: none !important;
             }
             
-            /* 애드쉴드 무력화 */
+            /* YouTube 전용 광고 차단 */
+            .ytp-ad-overlay-container,
+            .ytp-ad-text-overlay,
+            .ytp-ad-player-overlay-instream-info,
+            .ytp-ad-overlay-close-button,
+            .ytp-ad-skip-button-container,
+            .ytp-ad-image-overlay,
+            .ytp-ad-text,
+            .ytp-ad-preview-container,
+            .ad-interrupting,
+            .ad-showing,
+            [class*="masthead-ad"],
+            [id*="player-ads"],
+            ytd-display-ad-renderer,
+            ytd-promoted-sparkles-web-renderer,
+            ytd-ad-slot-renderer,
+            ytd-in-feed-ad-layout-renderer,
+            ytd-banner-promo-renderer,
+            .ytd-promoted-video-renderer,
+            .ytd-compact-promoted-video-renderer {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                height: 0 !important;
+                width: 0 !important;
+            }
+            
+            /* 팝업 차단 */
             [class*="adshield"], [id*="adshield"] {
                 display: none !important;
             }
@@ -141,69 +152,6 @@
         }
         
         document.head.appendChild(style);
-    }
-
-    // 나무위키 전용 파워링크 차단
-    function blockNamuwikiAds() {
-        if (!window.location.hostname.includes('namu.wiki')) return;
-        
-        try {
-            let removedCount = 0;
-            
-            // 패턴 1: w.namu.la 이미지가 포함된 광고
-            const imgAds = document.querySelectorAll('img[src*="w.namu.la"]');
-            imgAds.forEach(img => {
-                let parent = img.parentNode;
-                while (parent && parent !== document.body) {
-                    if (parent.children.length <= 5 && parent.textContent.length < 500) {
-                        parent.remove();
-                        removedCount++;
-                        console.log('🚫 나무위키 파워링크 차단 (이미지)');
-                        break;
-                    }
-                    parent = parent.parentNode;
-                }
-            });
-            
-            // 패턴 2: 네이버 검색 링크가 포함된 광고
-            const naverAds = document.querySelectorAll('a[href*="search.naver.com"]');
-            naverAds.forEach(link => {
-                let parent = link.parentNode;
-                while (parent && parent !== document.body) {
-                    if (parent.children.length <= 5) {
-                        parent.remove();
-                        removedCount++;
-                        console.log('🚫 나무위키 파워링크 차단 (네이버링크)');
-                        break;
-                    }
-                    parent = parent.parentNode;
-                }
-            });
-            
-            // 패턴 3: 특정 클래스 패턴
-            const specialAds = document.querySelectorAll('div[class=""] > div > div[class]:nth-last-child(1)');
-            specialAds.forEach(ad => {
-                if (ad.querySelector('img') || ad.textContent.includes('광고')) {
-                    ad.remove();
-                    removedCount++;
-                    console.log('🚫 나무위키 파워링크 차단 (패턴)');
-                }
-            });
-            
-            // 애드쉴드 제거
-            const adshields = document.querySelectorAll('[class*="adshield"], [id*="adshield"], script[src*="adshield"]');
-            adshields.forEach(el => {
-                el.remove();
-                console.log('🚫 애드쉴드 제거');
-            });
-            
-            if (removedCount > 0) {
-                console.log(`🚫 나무위키에서 ${removedCount}개 광고 차단`);
-            }
-            
-        } catch (error) {
-            console.log('나무위키 광고 차단 오류:', error);
-        }
     }
 
     // 일반 광고 제거
@@ -250,6 +198,122 @@
         };
     }
 
+    // YouTube 광고 완벽 차단
+    function handleYouTubeAds() {
+        if (!window.location.hostname.includes('youtube.com')) return;
+        
+        console.log('🎥 YouTube 광고 차단 시작');
+        
+        // 광고 스킵 버튼 자동 클릭
+        function autoSkipAds() {
+            const skipButtons = [
+                '.ytp-ad-skip-button',
+                '.ytp-skip-ad-button', 
+                '.ytp-ad-skip-button-modern',
+                '.ytp-ad-overlay-close-button',
+                '[aria-label*="광고 건너뛰기"]',
+                '[aria-label*="Skip ad"]',
+                '.ytp-ad-skip-button-container button'
+            ];
+            
+            skipButtons.forEach(selector => {
+                const button = document.querySelector(selector);
+                if (button && button.style.display !== 'none') {
+                    button.click();
+                    console.log('🚫 YouTube 광고 스킵 버튼 클릭');
+                }
+            });
+        }
+        
+        // 광고 관련 요소 제거
+        function removeYouTubeAdElements() {
+            const youtubeAdSelectors = [
+                '.ytp-ad-overlay-container',
+                '.ytp-ad-text-overlay',
+                '.ytp-ad-player-overlay-instream-info',
+                '.ytp-ad-image-overlay',
+                '.ytp-ad-text',
+                '.ytp-ad-preview-container',
+                '.ad-interrupting',
+                '.ad-showing',
+                'ytd-display-ad-renderer',
+                'ytd-promoted-sparkles-web-renderer',
+                'ytd-ad-slot-renderer',
+                'ytd-in-feed-ad-layout-renderer',
+                'ytd-banner-promo-renderer',
+                '.ytd-promoted-video-renderer',
+                '.ytd-compact-promoted-video-renderer',
+                '[class*="masthead-ad"]',
+                '[id*="player-ads"]'
+            ];
+            
+            let removedCount = 0;
+            youtubeAdSelectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(element => {
+                    if (element) {
+                        element.remove();
+                        removedCount++;
+                    }
+                });
+            });
+            
+            if (removedCount > 0) {
+                console.log(`🚫 YouTube 광고 요소 ${removedCount}개 제거`);
+            }
+        }
+        
+        // 비디오 광고 자동 스킵 (시간 조작)
+        function autoSkipVideoAds() {
+            const video = document.querySelector('video');
+            if (video) {
+                const adIndicators = [
+                    document.querySelector('.ytp-ad-text'),
+                    document.querySelector('.ad-showing'),
+                    document.querySelector('.ad-interrupting')
+                ];
+                
+                const hasAd = adIndicators.some(indicator => indicator && indicator.style.display !== 'none');
+                
+                if (hasAd && video.duration > 0 && video.currentTime < video.duration) {
+                    video.currentTime = video.duration - 0.1;
+                    console.log('🚫 YouTube 광고 시간 스킵');
+                }
+            }
+        }
+        
+        // YouTube Premium 팝업 차단
+        function blockPremiumPopups() {
+            const premiumSelectors = [
+                'ytd-mealbar-promo-renderer',
+                'ytd-popup-container',
+                '[aria-label*="Premium"]',
+                '[class*="premium"]'
+            ];
+            
+            premiumSelectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(element => {
+                    if (element && element.textContent.includes('Premium')) {
+                        element.remove();
+                    }
+                });
+            });
+        }
+        
+        // 0.5초마다 실행
+        setInterval(() => {
+            autoSkipAds();
+            removeYouTubeAdElements();
+            autoSkipVideoAds();
+            blockPremiumPopups();
+        }, 500);
+        
+        // 비디오 시작/일시정지 시에도 실행
+        document.addEventListener('play', autoSkipAds, true);
+        document.addEventListener('loadstart', autoSkipAds, true);
+    }
+
     // DOM 변화 감지
     function setupMutationObserver() {
         const observer = new MutationObserver(function(mutations) {
@@ -265,7 +329,6 @@
                 clearTimeout(window.adBlockTimeout);
                 window.adBlockTimeout = setTimeout(() => {
                     removeAdsAggressively();
-                    blockNamuwikiAds();
                 }, 100);
             }
         });
@@ -280,23 +343,10 @@
         }
     }
 
-    // YouTube 광고 스킵
-    function handleYouTubeAds() {
-        if (window.location.hostname.includes('youtube.com')) {
-            setInterval(() => {
-                const skipButton = document.querySelector('.ytp-ad-skip-button, .ytp-skip-ad-button');
-                if (skipButton) {
-                    skipButton.click();
-                    console.log('🚫 YouTube 광고 스킵');
-                }
-            }, 1000);
-        }
-    }
-
     // 초기화 함수
     function init() {
         try {
-            console.log('🚫 나무위키 전용 강력한 광고차단기 시작!');
+            console.log('🚫 유니콘 강력한 광고차단기 시작!');
             
             // 즉시 CSS 주입
             injectStrongCSS();
@@ -306,41 +356,28 @@
             
             // 즉시 한 번 실행
             removeAdsAggressively();
-            blockNamuwikiAds();
             
             // DOM 준비 후 실행
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() {
                     removeAdsAggressively();
-                    blockNamuwikiAds();
                     setupMutationObserver();
                     handleYouTubeAds();
                 });
             } else {
                 removeAdsAggressively();
-                blockNamuwikiAds();
                 setupMutationObserver();
                 handleYouTubeAds();
             }
             
-            // 주기적 검사 (나무위키는 더 자주)
-            if (window.location.hostname.includes('namu.wiki')) {
-                setInterval(() => {
-                    removeAdsAggressively();
-                    blockNamuwikiAds();
-                }, 1000); // 1초마다
-            } else {
-                setInterval(removeAdsAggressively, 3000); // 3초마다
-            }
+            // 주기적 검사
+            setInterval(removeAdsAggressively, 3000); // 3초마다
             
             // 스크롤 시에도 검사
             let scrollTimeout;
             window.addEventListener('scroll', function() {
                 clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(() => {
-                    removeAdsAggressively();
-                    blockNamuwikiAds();
-                }, 500);
+                scrollTimeout = setTimeout(removeAdsAggressively, 500);
             });
             
         } catch (error) {
